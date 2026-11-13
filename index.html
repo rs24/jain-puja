@@ -102,13 +102,31 @@
   .hint-toggle input { width:19px; height:19px; accent-color:var(--saffron); cursor:pointer; }
   #numberMasks { display:inline; }
   .art-wrap.hints-on #numberMasks { display:none; }
-  .instruction {
-    margin: 13px 0 0;
-    min-height: 48px;
+  .step-panels {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .step-card {
+    min-width: 0;
+    padding: 12px 10px;
+    border: 1px solid #f0dfca;
+    border-radius: 14px;
+    background: #fffaf3;
     text-align: center;
-    font-size: 1rem;
-    color: var(--ink);
-    font-weight: 650;
+  }
+  .step-card.next-card { background: #fff4df; border-color: #efc27e; }
+  .step-kicker { color: var(--muted); font-size: .75rem; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
+  .step-number { color: var(--saffron-dark); font-size: 1.35rem; font-weight: 850; margin: 3px 0; }
+  .step-gu { font-size: 1.05rem; font-weight: 800; line-height: 1.4; }
+  .step-en { color: var(--muted); font-size: .85rem; margin-top: 2px; line-height: 1.35; }
+  .step-empty { color: #a99a8d; font-size: .88rem; padding: 8px 0; }
+  @media (max-width: 420px) {
+    .step-panels { gap: 7px; }
+    .step-card { padding: 10px 6px; }
+    .step-gu { font-size: .96rem; }
+    .step-en { font-size: .78rem; }
   }
   .actions { display: flex; justify-content: center; margin-top: 12px; }
   button.reset {
@@ -128,6 +146,13 @@
   @media (min-width: 650px) {
     body { padding-top: 26px; }
     .panel { padding: 16px; }
+  }
+  .version-footer {
+    margin: 14px auto 0;
+    text-align: center;
+    color: #9a8878;
+    font-size: .75rem;
+    letter-spacing: .04em;
   }
 </style>
 </head>
@@ -206,12 +231,24 @@
     <div class="hint-toggle">
       <label for="hintToggle"><input id="hintToggle" type="checkbox"><span>Show number hints</span></label>
     </div>
-    <div class="instruction" id="instruction" aria-live="polite">Find point 1 and tap the circle to begin.</div>
+    <div class="step-panels" aria-live="polite">
+      <div class="step-card" id="doneCard">
+        <div class="step-kicker">Just completed · હમણાં કર્યું</div>
+        <div class="step-empty">હજુ કોઈ નહીં · Not yet</div>
+      </div>
+      <div class="step-card next-card" id="nextCard">
+        <div class="step-kicker">Next · હવે કરો</div>
+        <div class="step-number">1</div>
+        <div class="step-gu">જમણા પગનો અંગૂઠો</div>
+        <div class="step-en">Right toe</div>
+      </div>
+    </div>
     <div class="actions">
       <button class="reset" id="reset" type="button">↻ Reset</button>
     </div>
   </section>
   <p class="note">Tap the marked places in order. A correct tap colours the circle saffron.</p>
+  <footer class="version-footer" aria-label="Application version">v4</footer>
 </main>
 
 <script>
@@ -220,27 +257,53 @@
   const countEl = document.getElementById('count');
   const bar = document.getElementById('bar');
   const progress = document.getElementById('progress');
-  const instruction = document.getElementById('instruction');
   const hintToggle = document.getElementById('hintToggle');
   const artWrap = document.getElementById('artWrap');
+  const doneCard = document.getElementById('doneCard');
+  const nextCard = document.getElementById('nextCard');
   hintToggle.addEventListener('change', () => artWrap.classList.toggle('hints-on', hintToggle.checked));
+
+  // Gujarati and English labels follow the point list confirmed for this practice page.
   const names = [
-    'Left-side toe', 'Right-side toe', 'Left-side knee', 'Right-side knee',
-    'Forearm on the left side of the picture (just above the palm)', 'Forearm on the right side of the picture (just above the palm)',
-    'Shoulder on the left side of the picture', 'Shoulder on the right side of the picture', 'Centre of head',
-    'Forehead', 'Throat', 'Chest', 'Navel'
+    ['જમણા પગનો અંગૂઠો', 'Right toe'],
+    ['ડાબા પગનો અંગૂઠો', 'Left toe'],
+    ['ડાબો ઘૂંટણ', 'Left knee'],
+    ['જમણો ઘૂંટણ', 'Right knee'],
+    ['ડાબા હાથનું કાંડું', 'Left forearm, just above the palm'],
+    ['જમણા હાથનું કાંડું', 'Right forearm, just above the palm'],
+    ['ડાબો ખભો', 'Left shoulder'],
+    ['જમણો ખભો', 'Right shoulder'],
+    ['મસ્તક', 'Centre of head'],
+    ['કપાળ', 'Forehead'],
+    ['કંઠ', 'Throat'],
+    ['હૃદયસ્થાન', 'Chest'],
+    ['નાભિ', 'Navel']
   ];
   let next = 1;
+  let lastCompleted = 0;
+
+  function cardContent(step, kicker) {
+    const [gu, en] = names[step - 1];
+    return `<div class="step-kicker">${kicker}</div>
+      <div class="step-number">${step}</div>
+      <div class="step-gu" lang="gu">${gu}</div>
+      <div class="step-en">${en}</div>`;
+  }
 
   function update() {
     const completed = next - 1;
     countEl.textContent = `${completed} / 13`;
     bar.style.width = `${completed / 13 * 100}%`;
     progress.setAttribute('aria-valuenow', String(completed));
+
+    doneCard.innerHTML = lastCompleted
+      ? cardContent(lastCompleted, 'Just completed · હમણાં કર્યું')
+      : '<div class="step-kicker">Just completed · હમણાં કર્યું</div><div class="step-empty">હજુ કોઈ નહીં · Not yet</div>';
+
     if (next <= 13) {
-      instruction.textContent = `Tap point ${next} · ${names[next - 1]}`;
+      nextCard.innerHTML = cardContent(next, 'Next · હવે કરો');
     } else {
-      instruction.textContent = 'શાબાશ! Wonderful! You completed Chandan Puja! 🙏';
+      nextCard.innerHTML = '<div class="step-kicker">Complete · પૂર્ણ</div><div class="step-gu" lang="gu">શાબાશ!</div><div class="step-en">Wonderful! All 13 steps completed.</div>';
     }
   }
 
@@ -249,6 +312,7 @@
       const target = targets.find(el => Number(el.dataset.step) === step);
       target.classList.add('done');
       target.setAttribute('aria-pressed', 'true');
+      lastCompleted = step;
       next += 1;
       update();
       if (next === 14) {
@@ -273,6 +337,7 @@
 
   document.getElementById('reset').addEventListener('click', () => {
     next = 1;
+    lastCompleted = 0;
     targets.forEach(target => {
       target.classList.remove('done');
       target.setAttribute('aria-pressed', 'false');
