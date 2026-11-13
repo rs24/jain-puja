@@ -54,6 +54,38 @@
     height: 100%;
     overflow: visible;
   }
+  .vatki-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 10px auto 2px;
+  }
+  .vatki {
+    width: 150px;
+    height: 76px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    outline: none;
+    touch-action: manipulation;
+  }
+  .vatki svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  .vatki:focus-visible { filter: drop-shadow(0 0 3px #2766b0); }
+  .vatki.dipped .vatki-cream { fill: #f5a623; }
+  .vatki .vatki-label {
+    font: 700 11px system-ui, sans-serif;
+    fill: #6b3b1d;
+    text-anchor: middle;
+  }
+  .dip-status {
+    margin: 9px auto 0;
+    text-align: center;
+    color: var(--muted);
+    font-size: .9rem;
+    line-height: 1.4;
+  }
+  .dip-status strong { color: var(--saffron-dark); }
   .target { cursor: pointer; outline: none; }
   .target .hit {
     fill: transparent;
@@ -221,12 +253,31 @@
       </svg>
     </div>
 
+    <div class="vatki-row">
+      <button class="vatki" id="vatki" type="button" aria-label="Dip in chandan">
+        <svg viewBox="0 0 180 90" role="img" aria-label="Silver bowl with saffron sandalwood paste">
+          <ellipse cx="90" cy="73" rx="54" ry="8" fill="#aeb6bd" opacity=".35"/>
+          <path d="M36 31 Q90 44 144 31 L132 68 Q90 84 48 68 Z"
+                fill="#d9e0e5" stroke="#7d8992" stroke-width="3"/>
+          <ellipse class="vatki-rim" cx="90" cy="31" rx="54" ry="13"
+                   fill="#f4f6f7" stroke="#7d8992" stroke-width="3"/>
+          <ellipse class="vatki-cream" cx="90" cy="31" rx="42" ry="8"
+                   fill="#e8a13b" stroke="#c47b1c" stroke-width="1.5"/>
+          <path d="M52 52 Q90 66 128 52" fill="none" stroke="#ffffff" stroke-width="3" opacity=".8"/>
+          <text class="vatki-label" x="90" y="88">DIP CHANDAN</text>
+        </svg>
+      </button>
+    </div>
+
     <div class="status">
       <span>Progress</span>
       <span class="count" id="count">0 / 13</span>
     </div>
     <div class="progress" role="progressbar" aria-label="Puja progress" aria-valuemin="0" aria-valuemax="13" aria-valuenow="0" id="progress">
       <div id="bar"></div>
+    </div>
+    <div class="dip-status" id="dipStatus" aria-live="polite">
+      Chandan dips: <strong id="dipCount">0 / 9</strong> · Tap the silver vatki first.
     </div>
     <div class="hint-toggle">
       <label for="hintToggle"><input id="hintToggle" type="checkbox"><span>Show number hints</span></label>
@@ -248,7 +299,7 @@
     </div>
   </section>
   <p class="note">Tap the marked places in order. A correct tap colours the circle saffron.</p>
-  <footer class="version-footer" aria-label="Application version">v5</footer>
+  <footer class="version-footer" aria-label="Application version">v7</footer>
 </main>
 
 <script>
@@ -261,6 +312,41 @@
   const artWrap = document.getElementById('artWrap');
   const doneCard = document.getElementById('doneCard');
   const nextCard = document.getElementById('nextCard');
+  const vatki = document.getElementById('vatki');
+  const dipCountEl = document.getElementById('dipCount');
+  const dipStatus = document.getElementById('dipStatus');
+  let dipsUsed = 0;
+  let chandanTouchesLeft = 0;
+
+  // One dip covers each pair 1–2, 3–4, 5–6 and 7–8.
+  // Points 9–13 each require a fresh dip.
+  function doDip() {
+    if (next > 13) return;
+    if (chandanTouchesLeft > 0) {
+      alert('There is still chandan on your finger. Complete the current point or pair before dipping again.');
+      return;
+    }
+    if (dipsUsed >= 9) {
+      alert('All 9 dips have been used. Please reset to practise again.');
+      return;
+    }
+    chandanTouchesLeft = next <= 8 ? 2 : 1;
+    dipsUsed += 1;
+    vatki.classList.add('dipped');
+    dipCountEl.textContent = `${dipsUsed} / 9`;
+    dipStatus.innerHTML = `Chandan picked up · <strong>${chandanTouchesLeft} touch${chandanTouchesLeft === 1 ? '' : 'es'} remaining</strong>`;
+  }
+
+  function consumeChandan() {
+    chandanTouchesLeft -= 1;
+    if (chandanTouchesLeft <= 0) {
+      chandanTouchesLeft = 0;
+      vatki.classList.remove('dipped');
+      dipStatus.innerHTML = 'Chandan used · Dip again for the next point or pair.';
+    } else {
+      dipStatus.innerHTML = 'Chandan picked up · <strong>1 touch remaining</strong>';
+    }
+  }
   hintToggle.addEventListener('change', () => artWrap.classList.toggle('hints-on', hintToggle.checked));
 
   // Gujarati and English labels follow the point list confirmed for this practice page.
@@ -308,9 +394,14 @@
   }
 
   function tap(step) {
+    if (step === next && chandanTouchesLeft <= 0) {
+      alert('Dip your finger in the chandan vatki first.');
+      return;
+    }
     if (step === next) {
       const target = targets.find(el => Number(el.dataset.step) === step);
       target.classList.add('done');
+      consumeChandan();
       target.setAttribute('aria-pressed', 'true');
       lastCompleted = step;
       next += 1;
@@ -325,6 +416,14 @@
     }
   }
 
+  vatki.addEventListener('click', doDip);
+  vatki.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      doDip();
+    }
+  });
+
   targets.forEach(target => {
     target.addEventListener('click', () => tap(Number(target.dataset.step)));
     target.addEventListener('keydown', event => {
@@ -338,6 +437,11 @@
   document.getElementById('reset').addEventListener('click', () => {
     next = 1;
     lastCompleted = 0;
+    dipsUsed = 0;
+    chandanTouchesLeft = 0;
+    vatki.classList.remove('dipped');
+    dipCountEl.textContent = '0 / 9';
+    dipStatus.innerHTML = 'Chandan dips: <strong>0 / 9</strong> · Tap the silver vatki first.';
     targets.forEach(target => {
       target.classList.remove('done');
       target.setAttribute('aria-pressed', 'false');
